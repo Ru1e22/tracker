@@ -3,83 +3,177 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wyzwanie $1 BI - Poker Tracker</title>
+    <title>Szef Poker Tracker PRO</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #e0e0e0; padding: 20px; max-width: 900px; margin: auto; }
-        h1 { color: #f39c12; text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; }
-        .stats { display: flex; justify-content: space-around; background-color: #1e1e1e; padding: 20px; border-radius: 10px; margin-bottom: 30px; border: 1px solid #333; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .stat-box { font-size: 1.2em; }
-        .stat-box strong { font-size: 1.5em; }
-        table { width: 100%; border-collapse: collapse; background-color: #1e1e1e; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        th, td { padding: 15px; border-bottom: 1px solid #333; text-align: center; }
-        th { background-color: #2c3e50; color: white; text-transform: uppercase; font-size: 0.9em; }
-        tr:hover { background-color: #2a2a2a; }
-        .profit { color: #2ecc71; font-weight: bold; }
-        .loss { color: #e74c3c; font-weight: bold; }
-        .neutral { color: #95a5a6; }
+        body { font-family: sans-serif; background: #121212; color: #eee; padding: 15px; margin: auto; max-width: 1000px; }
+        .card { background: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #333; }
+        h1, h2 { color: #f39c12; margin-top: 0; }
+        input, select, button { padding: 10px; margin: 5px 0; background: #2a2a2a; color: white; border: 1px solid #444; border-radius: 5px; }
+        button { background: #f39c12; color: black; font-weight: bold; cursor: pointer; border: none; }
+        button:hover { background: #d35400; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em; }
+        th, td { padding: 10px; border-bottom: 1px solid #333; text-align: center; }
+        th { background: #2c3e50; }
+        .profit { color: #2ecc71; } .loss { color: #e74c3c; }
+        .admin-only { display: none; background: #252525; border: 1px dashed #f39c12; }
+        #login-section { text-align: right; margin-bottom: 10px; }
+        .grid-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
     </style>
 </head>
 <body>
 
-    <h1>🏆 Wyzwanie $1 BI by Szef</h1>
-    
-    <div class="stats">
-        <div class="stat-box">Obecny Bankroll:<br> <strong id="bankroll">$0.00</strong></div>
-        <div class="stat-box">Zysk / Strata:<br> <strong id="total-profit">$0.00</strong></div>
+<div id="login-section">
+    <span id="user-email"></span>
+    <button id="btn-login-show" onclick="showLogin()">Login Admin</button>
+    <button id="btn-logout" onclick="logout()" style="display:none">Wyloguj</button>
+</div>
+
+<div id="login-form" class="card" style="display:none">
+    <h3>Logowanie Admina</h3>
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Hasło">
+    <button onclick="login()">Zaloguj</button>
+</div>
+
+<div class="card">
+    <h1>🏆 Bankroll: <span id="total-br">$0.00</span></h1>
+    <p>Całkowity Profit: <span id="total-profit">$0.00</span></p>
+</div>
+
+<div id="admin-panel" class="card admin-only">
+    <h2>➕ Dodaj Turniej</h2>
+    <div class="grid-inputs">
+        <input type="date" id="t-date">
+        <input type="text" id="t-name" placeholder="Nazwa turnieju">
+        <input type="number" id="t-buyin" step="0.01" placeholder="Buy-in $">
+        <input type="number" id="t-mu" step="0.01" value="1.00" placeholder="Markup (np. 1.1)">
+        <input type="number" id="t-sold" step="0.01" placeholder="% Sprzedane">
+        <input type="number" id="t-win" step="0.01" value="0.00" placeholder="Wygrana $">
     </div>
+    <button onclick="addTournament()" style="margin-top:15px; width:100%">DODAJ TURNIEJ DO BAZY</button>
+</div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Data</th>
-                <th>Turniej</th>
-                <th>Wkład</th>
-                <th>Wygrana</th>
-                <th>Zysk Netto</th>
-            </tr>
-        </thead>
-        <tbody id="tournaments-list">
-            </tbody>
-    </table>
-
-    <script>
-        // TUTAJ EDYTUJESZ DANE!
-        const startBankroll = 102.76;
-        
-        // Aby dodać turniej, skopiuj jedną linijkę i zmień wartości
-        const tournaments = [
-            { date: "25.04", name: "Daily Deep Stacks $1", buyin: 1.00, win: 0.00 },
-            { date: "25.04", name: "Daily Hyper $1", buyin: 1.00, win: 0.00 },
-            { date: "25.04", name: "Bounty Hunters $1.08", buyin: 1.00, win: 3.50 }, // Przykładowa wygrana 3.50$ (zysk na zielono)
-            { date: "25.04", name: "Bounty Hunters Special $3.20", buyin: 1.00, win: 0.00 }
-        ];
-
-        // Magia licząca to wszystko:
-        let totalProfit = 0;
-        const list = document.getElementById("tournaments-list");
-
-        tournaments.forEach(t => {
-            let profit = t.win - t.buyin;
-            totalProfit += profit;
-            
-            let profitClass = profit > 0 ? "profit" : (profit < 0 ? "loss" : "neutral");
-            
-            list.innerHTML += `
+<div class="card">
+    <h2>📋 Lista Turniejów</h2>
+    <div style="overflow-x:auto">
+        <table>
+            <thead>
                 <tr>
-                    <td>${t.date}</td>
-                    <td style="text-align: left;">${t.name}</td>
-                    <td>$${t.buyin.toFixed(2)}</td>
-                    <td>$${t.win.toFixed(2)}</td>
-                    <td class="${profitClass}">${profit > 0 ? '+' : ''}$${profit.toFixed(2)}</td>
+                    <th>Data</th>
+                    <th>Nazwa</th>
+                    <th>BI ($)</th>
+                    <th>MU</th>
+                    <th>Sold %</th>
+                    <th>Mój Wkład</th>
+                    <th>Wygrana</th>
+                    <th>Profit Netto</th>
+                    <th class="admin-only">Akcja</th>
                 </tr>
-            `;
+            </thead>
+            <tbody id="t-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// --- KONFIGURACJA FIREBASE ---
+    // TU WKLEJ SWOJE DANE Z KROKU 1.4:
+    const firebaseConfig = {
+      apiKey: "AIzaSyAihhiTTNLJ4a_2GEWuWg2NM8cbwfza-2A",
+      authDomain: "tracker-3311d.firebaseapp.com",
+      projectId: "tracker-3311d",
+      storageBucket: "tracker-3311d.firebasestorage.app",
+      messagingSenderId: "154017912744",
+      appId: "1:154017912744:web:a728b7d03411d4b9a2af9d"
+    };
+    // ----------------------------
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const startBR = 102.76;
+
+    // Logowanie
+    function login() {
+        const e = document.getElementById('email').value;
+        const p = document.getElementById('password').value;
+        auth.signInWithEmailAndPassword(e, p).catch(err => alert(err.message));
+    }
+
+    function logout() { auth.signOut(); location.reload(); }
+
+    function showLogin() { document.getElementById('login-form').style.display = 'block'; }
+
+    // Obserwator stanu logowania
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('btn-login-show').style.display = 'none';
+            document.getElementById('btn-logout').style.display = 'inline-block';
+            document.getElementById('user-email').innerText = user.email;
+        }
+    });
+
+    // Dodawanie turnieju
+    function addTournament() {
+        const data = {
+            date: document.getElementById('t-date').value,
+            name: document.getElementById('t-name').value,
+            buyin: parseFloat(document.getElementById('t-buyin').value),
+            mu: parseFloat(document.getElementById('t-mu').value),
+            sold: parseFloat(document.getElementById('t-sold').value),
+            win: parseFloat(document.getElementById('t-win').value),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        db.collection("tournaments").add(data).then(() => {
+            alert("Dodano!");
+        });
+    }
+
+    // Usuwanie
+    function deleteT(id) {
+        if(confirm("Usunąć?")) db.collection("tournaments").doc(id).delete();
+    }
+
+    // Pobieranie danych na żywo
+    db.collection("tournaments").orderBy("date", "desc").onSnapshot(snapshot => {
+        let html = "";
+        let totalNet = 0;
+
+        snapshot.forEach(doc => {
+            const t = doc.data();
+            // Kalkulacja: ile realnie zapłaciłeś
+            // Przykład: BI $10, Sold 50%, MU 1.1 -> Sprzedałeś za 10 * 0.5 * 1.1 = $5.5. 
+            // Twój koszt = 10 - 5.5 = $4.5.
+            const incomeFromSelling = t.buyin * (t.sold / 100) * t.mu;
+            const myCost = t.buyin - incomeFromSelling;
+            const net = t.win - myCost;
+            totalNet += net;
+
+            html += `<tr>
+                <td>${t.date}</td>
+                <td>${t.name}</td>
+                <td>$${t.buyin}</td>
+                <td>${t.mu}</td>
+                <td>${t.sold}%</td>
+                <td>$${myCost.toFixed(2)}</td>
+                <td>$${t.win}</td>
+                <td class="${net >= 0 ? 'profit' : 'loss'}">$${net.toFixed(2)}</td>
+                <td class="admin-only"><button onclick="deleteT('${doc.id}')" style="background:red; color:white; padding:5px">X</button></td>
+            </tr>`;
         });
 
-        document.getElementById("bankroll").innerText = "$" + (startBankroll + totalProfit).toFixed(2);
-        
-        let tpElement = document.getElementById("total-profit");
-        tpElement.innerText = (totalProfit > 0 ? '+' : '') + "$" + totalProfit.toFixed(2);
-        tpElement.className = totalProfit > 0 ? "profit" : (totalProfit < 0 ? "loss" : "neutral");
-    </script>
+        document.getElementById('t-body').innerHTML = html;
+        document.getElementById('total-profit').innerText = "$" + totalNet.toFixed(2);
+        document.getElementById('total-profit').className = totalNet >= 0 ? 'profit' : 'loss';
+        document.getElementById('total-br').innerText = "$" + (startBR + totalNet).toFixed(2);
+    });
+</script>
+
 </body>
 </html>
