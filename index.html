@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Szef Poker Tracker PRO</title>
+    <title>br challenge rlz</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
         body { font-family: sans-serif; background: #121212; color: #eee; padding: 15px; margin: auto; max-width: 1000px; }
-        .card { background: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #333; }
+        .card { background: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #333; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         h1, h2 { color: #f39c12; margin-top: 0; display: flex; align-items: center; gap: 10px; }
         input, select, button { padding: 10px; margin: 5px 0; background: #2a2a2a; color: white; border: 1px solid #444; border-radius: 5px; }
         button { background: #f39c12; color: black; font-weight: bold; cursor: pointer; border: none; }
@@ -17,13 +17,14 @@
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em; }
         th, td { padding: 10px; border-bottom: 1px solid #333; text-align: center; }
         th { background: #2c3e50; }
-        .profit { color: #2ecc71; } .loss { color: #e74c3c; }
+        .profit { color: #2ecc71; font-weight: bold;} .loss { color: #e74c3c; font-weight: bold;}
         .admin-only { display: none; }
         #admin-panel { background: #252525; border: 1px dashed #f39c12; }
         #login-section { text-align: right; margin-bottom: 10px; }
         .grid-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
         .btn-small { background: #555; color: white; font-size: 0.5em; padding: 5px 10px; border-radius: 4px; }
         .btn-small:hover { background: #777; }
+        .session-header { background-color: #333; color: #f39c12; font-size: 1.1em; text-align: left; padding-left: 20px; }
     </style>
 </head>
 <body>
@@ -42,10 +43,10 @@
 </div>
 
 <div class="card">
-    <h1>🏆 Bankroll: <span id="total-br">$0.00</span> 
+    <h1>🏆 BR Challenge: <span id="total-br">$0.00</span> 
         <button class="admin-only btn-small" onclick="editBankroll()">✏️ Edytuj startowy</button>
     </h1>
-    <p>Całkowity Profit: <span id="total-profit">$0.00</span></p>
+    <p>Całkowity Profit (All-Time): <span id="total-profit">$0.00</span></p>
 </div>
 
 <div id="admin-panel" class="card admin-only">
@@ -62,7 +63,11 @@
 </div>
 
 <div class="card">
-    <h2>📋 Lista Turniejów</h2>
+    <h2>🔥 Aktywna Sesja</h2>
+    <p style="font-size: 1.1em;">Profit z trwającej sesji: <span id="session-profit">$0.00</span></p>
+    
+    <button class="admin-only" onclick="archiveSession()" style="background:#8e44ad; color:white; width:100%; margin-bottom:15px; padding: 15px;">📦 ZAKOŃCZ I ARCHIWIZUJ OBECNĄ SESJĘ</button>
+
     <div style="overflow-x:auto">
         <table>
             <thead>
@@ -78,21 +83,46 @@
                     <th class="admin-only">Akcja</th>
                 </tr>
             </thead>
-            <tbody id="t-body"></tbody>
+            <tbody id="active-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h2>🗄️ Historia i Archiwum</h2>
+    <button onclick="toggleArchive()" style="background:#444; color:white; width:100%; margin-bottom:10px;">Pokaż / Ukryj Archiwum</button>
+    
+    <div id="archive-section" style="display:none; overflow-x:auto">
+        <table>
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Nazwa</th>
+                    <th>BI ($)</th>
+                    <th>MU</th>
+                    <th>Sold %</th>
+                    <th>Mój Wkład</th>
+                    <th>Wygrana</th>
+                    <th>Profit Netto</th>
+                    <th class="admin-only">Akcja</th>
+                </tr>
+            </thead>
+            <tbody id="archive-body"></tbody>
         </table>
     </div>
 </div>
 
 <script>
-// --- KONFIGURACJA FIREBASE ---
-    const firebaseConfig = {
-      apiKey: "AIzaSyAihhiTTNLJ4a_2GEWuWg2NM8cbwfza-2A",
-      authDomain: "tracker-3311d.firebaseapp.com",
-      projectId: "tracker-3311d",
-      storageBucket: "tracker-3311d.firebasestorage.app",
-      messagingSenderId: "154017912744",
-      appId: "1:154017912744:web:a728b7d03411d4b9a2af9d"
-    };
+    // --- KONFIGURACJA FIREBASE ---
+    // TU WKLEJ SWOJE DANE (apiKey, authDomain itd.):
+const firebaseConfig = {
+  apiKey: "AIzaSyAihhiTTNLJ4a_2GEWuWg2NM8cbwfza-2A",
+  authDomain: "tracker-3311d.firebaseapp.com",
+  projectId: "tracker-3311d",
+  storageBucket: "tracker-3311d.firebasestorage.app",
+  messagingSenderId: "154017912744",
+  appId: "1:154017912744:web:a728b7d03411d4b9a2af9d"
+};
     // ----------------------------
 
     firebase.initializeApp(firebaseConfig);
@@ -100,26 +130,26 @@
     const db = firebase.firestore();
 
     let startBR = 102.76;
-    let totalNet = 0;
+    let totalNetAllTime = 0;
+    let totalNetSession = 0;
 
-    // Funkcja aktualizująca wyświetlanie kwot
-    function updateTotals() {
-        document.getElementById('total-profit').innerText = "$" + totalNet.toFixed(2);
-        document.getElementById('total-profit').className = totalNet >= 0 ? 'profit' : 'loss';
-        document.getElementById('total-br').innerText = "$" + (startBR + totalNet).toFixed(2);
-    }
-
-    // Pobieranie Bankrollu startowego z bazy danych
+    // Pobieranie Bankrollu startowego z bazy
     db.collection("settings").doc("bankroll").onSnapshot(doc => {
-        if (doc.exists) {
-            startBR = parseFloat(doc.data().value);
-        } else {
-            db.collection("settings").doc("bankroll").set({ value: 102.76 }); // Domyślny zapis
-        }
-        updateTotals();
+        if (doc.exists) { startBR = parseFloat(doc.data().value); } 
+        else { db.collection("settings").doc("bankroll").set({ value: 102.76 }); }
+        updateDisplays();
     });
 
-    // Zmiana Bankrollu startowego
+    function updateDisplays() {
+        document.getElementById('total-profit').innerText = "$" + totalNetAllTime.toFixed(2);
+        document.getElementById('total-profit').className = totalNetAllTime >= 0 ? 'profit' : 'loss';
+        
+        document.getElementById('session-profit').innerText = "$" + totalNetSession.toFixed(2);
+        document.getElementById('session-profit').className = totalNetSession >= 0 ? 'profit' : 'loss';
+
+        document.getElementById('total-br').innerText = "$" + (startBR + totalNetAllTime).toFixed(2);
+    }
+
     function editBankroll() {
         let newVal = prompt("Podaj nowy startowy bankroll (np. 150.50):", startBR);
         if (newVal !== null && newVal.trim() !== "" && !isNaN(newVal.replace(',', '.'))) {
@@ -128,19 +158,22 @@
         }
     }
 
-    // Logowanie
+    // Funkcje UI
+    function toggleArchive() {
+        let arch = document.getElementById('archive-section');
+        arch.style.display = arch.style.display === "none" ? "block" : "none";
+    }
+
+    function showLogin() { document.getElementById('login-form').style.display = 'block'; }
     function login() {
-        const e = document.getElementById('email').value;
-        const p = document.getElementById('password').value;
-        auth.signInWithEmailAndPassword(e, p).catch(err => alert(err.message));
+        auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('password').value).catch(err => alert(err.message));
     }
     function logout() { auth.signOut(); location.reload(); }
-    function showLogin() { document.getElementById('login-form').style.display = 'block'; }
 
-    // Obserwator stanu logowania
     auth.onAuthStateChanged(user => {
         if (user) {
-            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block'); // Zmienia display w tabeli z powrotem na table-cell tam gdzie trzeba
+            document.querySelectorAll('th.admin-only, td.admin-only').forEach(el => el.style.display = 'table-cell');
             document.getElementById('login-form').style.display = 'none';
             document.getElementById('btn-login-show').style.display = 'none';
             document.getElementById('btn-logout').style.display = 'inline-block';
@@ -150,15 +183,12 @@
 
     // Dodawanie turnieju
     function addTournament() {
-        // Zabezpieczenie przed pustymi polami - domyślne wartości
         let muVal = parseFloat(document.getElementById('t-mu').value);
-        if(isNaN(muVal)) muVal = 1.0; // Domyślnie brak markupu
-        
+        if(isNaN(muVal)) muVal = 1.0; 
         let winVal = parseFloat(document.getElementById('t-win').value);
-        if(isNaN(winVal)) winVal = 0.0; // Domyślnie brak wygranej
-        
+        if(isNaN(winVal)) winVal = 0.0; 
         let soldVal = parseFloat(document.getElementById('t-sold').value);
-        if(isNaN(soldVal)) soldVal = 0.0; // Domyślnie sprzedane 0%
+        if(isNaN(soldVal)) soldVal = 0.0; 
 
         const data = {
             date: document.getElementById('t-date').value,
@@ -167,10 +197,10 @@
             mu: muVal,
             sold: soldVal,
             win: winVal,
+            archived: false, // Domyślnie trafia do aktywnej sesji
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
         db.collection("tournaments").add(data).then(() => {
-            // Czyszczenie formularza po dodaniu
             document.getElementById('t-name').value = '';
             document.getElementById('t-buyin').value = '';
             document.getElementById('t-mu').value = '';
@@ -181,22 +211,51 @@
 
     // Usuwanie
     function deleteT(id) {
-        if(confirm("Na pewno usunąć ten turniej?")) db.collection("tournaments").doc(id).delete();
+        if(confirm("Na pewno usunąć?")) db.collection("tournaments").doc(id).delete();
+    }
+
+    // Archiwizowanie całej sesji
+    function archiveSession() {
+        if(confirm("Czy na pewno chcesz zakończyć obecną sesję i przenieść wszystkie aktywne turnieje do Archiwum?")) {
+            db.collection("tournaments").where("archived", "==", false).get().then(snap => {
+                const batch = db.batch();
+                snap.forEach(doc => {
+                    batch.update(doc.ref, { archived: true });
+                });
+                batch.commit().then(() => alert("Sesja zarchiwizowana!"));
+            }).catch(() => {
+                // Dla starych wpisów, które nie miały w ogóle pola 'archived'
+                db.collection("tournaments").get().then(snap => {
+                    const batch = db.batch();
+                    snap.forEach(doc => {
+                        if(doc.data().archived !== true) {
+                            batch.update(doc.ref, { archived: true });
+                        }
+                    });
+                    batch.commit().then(() => alert("Sesja zarchiwizowana!"));
+                });
+            });
+        }
     }
 
     // Pobieranie danych z bazy na żywo
     db.collection("tournaments").orderBy("date", "desc").onSnapshot(snapshot => {
-        let html = "";
-        totalNet = 0;
+        let activeHtml = "";
+        let archiveHtml = "";
+        totalNetAllTime = 0;
+        totalNetSession = 0;
+        
+        let currentArchiveDate = "";
 
         snapshot.forEach(doc => {
             const t = doc.data();
             const incomeFromSelling = t.buyin * (t.sold / 100) * t.mu;
             const myCost = t.buyin - incomeFromSelling;
             const net = t.win - myCost;
-            totalNet += net;
+            
+            totalNetAllTime += net;
 
-            html += `<tr>
+            let rowHtml = `<tr>
                 <td>${t.date || '-'}</td>
                 <td>${t.name}</td>
                 <td>$${t.buyin.toFixed(2)}</td>
@@ -205,12 +264,27 @@
                 <td>$${myCost.toFixed(2)}</td>
                 <td>$${t.win.toFixed(2)}</td>
                 <td class="${net > 0 ? 'profit' : (net < 0 ? 'loss' : '')}">$${net.toFixed(2)}</td>
-                <td class="admin-only"><button onclick="deleteT('${doc.id}')" class="btn-small" style="background:#e74c3c;">X</button></td>
+                <td class="admin-only" style="${auth.currentUser ? 'display:table-cell;' : 'display:none;'}"><button onclick="deleteT('${doc.id}')" class="btn-small" style="background:#e74c3c;">X</button></td>
             </tr>`;
+
+            // Sprawdzamy czy zarchiwizowany (uwzględnia też stare turnieje bez flagi jako false)
+            if (t.archived === true) {
+                // Grupowanie datami w archiwum
+                if (t.date !== currentArchiveDate) {
+                    archiveHtml += `<tr><td colspan="9" class="session-header">📅 Sesja z dnia: ${t.date || 'Brak daty'}</td></tr>`;
+                    currentArchiveDate = t.date;
+                }
+                archiveHtml += rowHtml;
+            } else {
+                activeHtml += rowHtml;
+                totalNetSession += net; // Dodajemy do profitu tylko trwającej sesji
+            }
         });
 
-        document.getElementById('t-body').innerHTML = html;
-        updateTotals();
+        document.getElementById('active-body').innerHTML = activeHtml || '<tr><td colspan="9">Brak aktywnych turniejów w tej sesji.</td></tr>';
+        document.getElementById('archive-body').innerHTML = archiveHtml || '<tr><td colspan="9">Archiwum jest puste.</td></tr>';
+        
+        updateDisplays();
     });
 </script>
 
